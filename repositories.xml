@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<repositories version="1.0">
+<repo priority="50" status="unofficial">
+	<name>jopadan</name>
+	<description>jopadan's multilib-9999 repository</description>
+	<homepage>https://github.com/jopadan/multilib-9999</homepage>
+	<owner>
+		<email>joneqdaniel@gmail.com</email>
+		<name>Jon Daniel</name>
+	</owner>
+	<source type="git">https://github.com/jopadan/multilib-9999/</source>
+	<feed>https://github.com/jopadan/multilib-9999/commits/master.atom</feed>
+</repo>
+</repositories>
