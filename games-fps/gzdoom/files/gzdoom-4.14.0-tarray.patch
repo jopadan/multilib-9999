@@ -1,0 +1,11 @@
+diff '--color=auto' -burN gzdoom/src/common/engine/m_random.h gzdoom-9999/src/common/engine/m_random.h
+--- gzdoom/src/common/engine/m_random.h	2025-01-29 21:03:02.674637493 +0100
++++ gzdoom-9999/src/common/engine/m_random.h	2025-01-29 21:01:34.273239768 +0100
+@@ -37,6 +37,7 @@
+ 
+ #include <stdio.h>
+ #include "basics.h"
++#include "tarray.h"
+ #include "sfmt/SFMTObj.h"
+ 
+ class FSerializer;

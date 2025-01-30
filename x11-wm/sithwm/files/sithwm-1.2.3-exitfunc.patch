@@ -1,0 +1,317 @@
+diff -burN sithwm-1.2.3/Makefile sithwm-1.2.3-patched/Makefile
+--- sithwm-1.2.3/Makefile	2022-11-11 16:02:36.172233555 +0100
++++ sithwm-1.2.3-patched/Makefile	2022-11-11 17:42:49.347839802 +0100
+@@ -35,15 +35,8 @@
+ 
+ DEFINES += -DVERSION=\"$(version),\ Maul\" $(DEBIAN) -DCONFDIR=\"$(confdir)\" 
+ 
+-OPT_$(CC) = -Os
+-OPT_cc  = -xO2
+-
+-EXDEFS= $(OPT_$(CC))
+-EXDEFS_d = -g
+-
+-CFLAGS_$(CC) = -std=c99 -Wall
+-CFLAGS_cc  = 
+-CFLAGS += $(CFLAGS_$(CC)) $(INCLUDES) $(DEFINES) $(EXDEFS$(D))
++CFLAGS ?= -march=native -O3 -g
++CFLAGS += -std=gnu2x $(INCLUDES) $(DEFINES)
+ 
+ LDFLAGS += $(LDPATH) $(LIBS)
+ 
+@@ -65,6 +58,7 @@
+ 	if [ -f sithwm.exe ]; then mv sithwm.exe sithwm; fi
+ 	mkdir -p $(prefix)/bin $(prefix)/share/man/man1 $(confdir)
+ 	install sithwm $(prefix)/bin
++	install xwmpid $(prefix)/bin
+ 	install sithwm.1 $(prefix)/share/man/man1
+ 	install default.sithwmrc $(confdir)
+ 	@if test -x /usr/bin/update-menus; then \
+diff -burN sithwm-1.2.3/client.c sithwm-1.2.3-patched/client.c
+--- sithwm-1.2.3/client.c	2008-04-14 22:10:44.000000000 +0200
++++ sithwm-1.2.3-patched/client.c	2022-11-11 12:42:01.802021585 +0100
+@@ -248,3 +248,41 @@
+    }
+    get_client_props(c);
+ }
++
++void sendcmessage(Window w, Atom a, long x, int isroot)
++{
++	XEvent ev;
++	int status;
++	long mask;
++
++	memset(&ev, 0, sizeof(ev));
++	ev.xclient.type = ClientMessage;
++	ev.xclient.window = w;
++	ev.xclient.message_type = a;
++	ev.xclient.format = 32;
++	ev.xclient.data.l[0] = x;
++	ev.xclient.data.l[1] = CurrentTime;
++	mask = NoEventMask;
++	if(isroot)
++		mask = SubstructureRedirectMask;
++	status = XSendEvent(dpy, w, False, mask, &ev);
++	if(status==0)
++		fprintf(stderr, "sithwm: sendcmessage failed\n");
++}
++
++void sendconfig(Client* c)
++{
++	XConfigureEvent ce;
++
++	ce.type = ConfigureNotify;
++	ce.event = c->dyn.window;
++	ce.window = c->dyn.window;
++	ce.x = c->dyn.area.pos.x;
++	ce.y = c->dyn.area.pos.y;
++	ce.width = c->dyn.area.w;
++	ce.height = c->dyn.area.h;
++	//ce.border_width = c->dyn.border;
++	ce.above = None;
++	ce.override_redirect = 0;
++	XSendEvent(dpy, c->dyn.window, False, StructureNotifyMask, (XEvent *) & ce);
++}
+Binary files sithwm-1.2.3/client.o and sithwm-1.2.3-patched/client.o differ
+diff -burN sithwm-1.2.3/default.sithwmrc sithwm-1.2.3-patched/default.sithwmrc
+--- sithwm-1.2.3/default.sithwmrc	2007-10-22 21:22:31.000000000 +0200
++++ sithwm-1.2.3-patched/default.sithwmrc	2022-11-11 17:17:00.016941255 +0100
+@@ -1,3 +1,8 @@
++cmd "xterm" "xterm"
++cmd "firefox" "firefox-bin"
++cmd "jdownloader" "/opt/jd2/JDownloader2"
++cmd "uget" "uget-gtk"
++cmd "exit" "kill `xwmpid sithwm`"
+ 
+ # menu "Apps"
+ #     menu "Viewers"
+@@ -74,7 +79,7 @@
+ 
+ key std		Escape		kill
+ key std,shift	Escape		kill,abs
+-
++key std		F4		exit			  -1
+ key std		a		maxim,raise,mouse
+ key std		f		fix
+ 
+diff -burN sithwm-1.2.3/events.c sithwm-1.2.3-patched/events.c
+--- sithwm-1.2.3/events.c	2007-10-18 14:44:58.000000000 +0200
++++ sithwm-1.2.3-patched/events.c	2022-11-11 17:37:08.009862153 +0100
+@@ -160,7 +160,7 @@
+ 	    else
+ #endif
+ 	    {
+-	       KeySym key = XKeycodeToKeysym(dpy,zevent.xkey.keycode,0);
++	       KeySym key = XLookupKeysym(&zevent.xkey,0);
+ 	       do_func(screen, &zevent, key);
+ 	    }
+ 	    break;
+@@ -273,7 +273,7 @@
+       int iter=0;
+       for (ScreenInfo*s2=screens+num_screens-1 ; s2>= screens ; s2--) {
+          Window root_r;
+-         unsigned int mask;
++         unsigned int mask = NoEventMask;
+          int rx,ry;
+          for (Window win_r = s2->root; iter<2; iter++)
+          {
+@@ -450,7 +450,10 @@
+ 	    current_screen->hist[current_screen->hist_index] = current_screen->area.pos;
+ 	 }
+ 	 if (thewt>230 && lock_command) {
+-	    system(lock_command);
++	    int i = system(lock_command);
++	    if (i == 0 || i == -1)
++	       LOG_ERROR("Lock command system(%s) failed: %d \n", lock_command, i);
++
+ 	    thewt = 0;
+ 	 }
+ #endif
+Binary files sithwm-1.2.3/events.o and sithwm-1.2.3-patched/events.o differ
+diff -burN sithwm-1.2.3/main.c sithwm-1.2.3-patched/main.c
+--- sithwm-1.2.3/main.c	2008-04-14 22:01:28.000000000 +0200
++++ sithwm-1.2.3-patched/main.c	2022-11-11 12:17:49.046116714 +0100
+@@ -15,6 +15,8 @@
+ int	    font_height;
+ unsigned int     numlockmask;
+ 
++Atom xa_wm_exit;
++Atom xa_wm_restart;
+ Atom xa_wm_state;
+ Atom xa_wm_protos;
+ Atom xa_wm_delete;
+@@ -41,8 +43,10 @@
+    XSetErrorHandler(handle_xerror);
+    /* XSynchronize(dpy, True); */
+ 
+-   xa_wm_state = XInternAtom(dpy, "WM_STATE", False);
+-   xa_wm_protos = XInternAtom(dpy, "WM_PROTOCOLS", False);
++   xa_wm_exit    = XInternAtom(dpy, "WM_EXIT"         , False);
++   xa_wm_restart = XInternAtom(dpy, "WM_RESTART"      , False);
++   xa_wm_state   = XInternAtom(dpy, "WM_STATE"        , False);
++   xa_wm_protos  = XInternAtom(dpy, "WM_PROTOCOLS"    , False);
+    xa_wm_delete = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+ 
+    font = XLoadQueryFont(dpy, opt_font);
+@@ -153,7 +157,7 @@
+ 
+    for (char**aaa = argv;*(++aaa);) {
+       if (aaa[0][0] != '-') {
+-	 strncpy(global_buffer, aaa[0], sizeof global_buffer);
++	 strncpy(global_buffer, aaa[0], sizeof global_buffer - 1);
+          parse_rc_line();
+       }
+    }
+Binary files sithwm-1.2.3/main.o and sithwm-1.2.3-patched/main.o differ
+diff -burN sithwm-1.2.3/menu.c sithwm-1.2.3-patched/menu.c
+--- sithwm-1.2.3/menu.c	2022-11-11 16:02:41.902233180 +0100
++++ sithwm-1.2.3-patched/menu.c	2022-11-11 16:04:59.086224197 +0100
+@@ -60,6 +60,8 @@
+    { "circulate", FUNC_CIRCUL<<FUNC_SHIFT},
+    { "hist", (FUNC_HIST<<FUNC_SHIFT)|FMOD_RAISE},
+    { "view_hist", (FUNC_VIEW_HIST<<FUNC_SHIFT)|FMOD_RAISE},
++   { "exit", FUNC_EXIT<<FUNC_SHIFT},
++   { "restart", FUNC_RESTART<<FUNC_SHIFT},
+    { "kill", FUNC_KILL<<FUNC_SHIFT},
+    { "lower", FUNC_LOWER<<FUNC_SHIFT},
+    { "enter", XACT_ENTER<<FUNC_SHIFT},
+@@ -192,6 +194,17 @@
+ 	 c->dyn.area = c->hist[c->hist_index];
+       break;
+ #endif
++   case FUNC_EXIT: {
++      sendcmessage(DefaultRootWindow(dpy), xa_wm_exit, 0L, 1);
++      XSync(dpy, False);
++      exit(EXIT_SUCCESS);
++   }
++   case FUNC_RESTART: {
++      sendcmessage(DefaultRootWindow(dpy), xa_wm_restart, 0L, 1);
++      XSync(dpy, False);
++      exit(EXIT_SUCCESS);
++   }
++
+    case FUNC_KILL: {
+       int i, n, found = 0;
+       Atom *protocols;
+@@ -202,15 +215,10 @@
+ 	       found++;
+ 	 XFree(protocols);
+       }
++
+       if (found) {
+-	 XEvent ev;
+-	 ev.type = ClientMessage;
+-	 ev.xclient.window = c->dyn.window;
+-	 ev.xclient.message_type = xa_wm_protos;
+-	 ev.xclient.format = 32;
+-	 ev.xclient.data.l[0] = xa_wm_delete;
+-	 ev.xclient.data.l[1] = CurrentTime;
+-	 XSendEvent(dpy, c->dyn.window, False, NoEventMask, &ev);
++	 sendcmessage(c->dyn.window, xa_wm_protos, xa_wm_delete, 0);
++	 XSync(dpy, False);
+       } else
+ 	 XKillClient(dpy, c->dyn.window);
+    } break;
+@@ -304,7 +312,7 @@
+ 
+             if (t->mask>=(FUNC_SPAWN<<FUNC_SHIFT) && !strng
+                 && z->mask>=(FUNC_SPAWN<<FUNC_SHIFT))
+-               LOG_ERROR("Err, Not a mask:%s %s %p %p\n", tmp, strng, tmp, strng);
++               LOG_ERROR("Err, Not a mask:%s NULL %p %p\n", tmp, tmp, strng);
+ 	 }
+       }
+       if (!found) {
+@@ -578,7 +586,7 @@
+    char akey = 0;
+    if (evnt) switch (evnt->type) {
+    case KeyPress:
+-      key = XKeycodeToKeysym(dpy, evnt->xkey.keycode, 0);
++      key = XLookupKeysym(&evnt->xkey, 0);
+       char* sym=XKeysymToString(key);
+       if (sym && sym[1] == 0 ) {
+          akey = tolower(sym[0]);
+Binary files sithwm-1.2.3/menu.o and sithwm-1.2.3-patched/menu.o differ
+diff -burN sithwm-1.2.3/misc.c sithwm-1.2.3-patched/misc.c
+--- sithwm-1.2.3/misc.c	2022-11-11 16:02:41.902233180 +0100
++++ sithwm-1.2.3-patched/misc.c	2022-11-11 12:35:10.773048500 +0100
+@@ -21,11 +21,14 @@
+             char *dot = strchr(colon, '.');
+             if (!dot)
+                dot = colon + strlen(colon);
+-            snprintf(dot, 5, ".%ld", current_screen-screens);
++            snprintf(dot, strlen(dot), ".%d", (int8_t)(current_screen-screens));
+             putenv(ebuf);
+          }
+ 	 snprintf(global_buffer, sizeof global_buffer, "%s&", command);
+-	 system(global_buffer);
++	 int i = system(global_buffer);
++	 if(i == 0 || i == -1)
++	 	LOG_ERROR("Global buffer system(%s) failed: %d \n", global_buffer, i);
++
+       }
+       _exit(0);
+    }
+@@ -93,3 +96,4 @@
+    }
+    return 0;
+ }
++
+Binary files sithwm-1.2.3/misc.o and sithwm-1.2.3-patched/misc.o differ
+Binary files sithwm-1.2.3/screen.o and sithwm-1.2.3-patched/screen.o differ
+Binary files sithwm-1.2.3/sithwm and sithwm-1.2.3-patched/sithwm differ
+diff -burN sithwm-1.2.3/sithwm.h sithwm-1.2.3-patched/sithwm.h
+--- sithwm-1.2.3/sithwm.h	2008-04-25 00:15:15.000000000 +0200
++++ sithwm-1.2.3-patched/sithwm.h	2022-11-11 11:07:38.147392451 +0100
+@@ -138,6 +138,8 @@
+ extern Atom xa_wm_state;
+ extern Atom xa_wm_delete;
+ extern Atom xa_wm_protos;
++extern Atom xa_wm_exit;
++extern Atom xa_wm_restart;
+ 
+ /* Things that affect user interaction */
+ 
+@@ -178,7 +180,6 @@
+ void get_client_props(Client*client);
+ 
+ enum {
+-
+    /* Functions, normally shifted left */
+ 
+    /* this first group requires a focused window to work on */
+@@ -191,10 +192,9 @@
+ 
+    /* this group should work anyway, make sure FUNC_MENU is first */
+    FUNC_MENU, FUNC_PAN, FUNC_NEXT_SCREEN,
+-   FUNC_VIEW_HIST, FUNC_SPAWN,
++   FUNC_VIEW_HIST, FUNC_SPAWN, FUNC_EXIT, FUNC_RESTART,
+ 
+-	/* Only for window actions so it dont matter where they
+-           are placed. */
++   /* Only for window actions so it dont matter where they are placed. */
+ 	XACT_ENTER, XACT_NEW, XACT_DELETED,
+ 
+ 	FUNC_MAX,
+@@ -213,6 +213,8 @@
+ 	FMOD_POPUP	= 0x800,
+ };
+ 
++void sendcmessage(Window w, Atom a, long x, int isroot);
++void sendconfig(Client* c);
+ void select_client(Client *c, unsigned int func);
+ Client* select_window(Window w, unsigned int func);
+ 
+diff -burN sithwm-1.2.3/xwmpid sithwm-1.2.3-patched/xwmpid
+--- sithwm-1.2.3/xwmpid	1970-01-01 01:00:00.000000000 +0100
++++ sithwm-1.2.3-patched/xwmpid	2022-11-08 20:11:39.649537136 +0100
+@@ -0,0 +1,10 @@
++#!/bin/sh
++ActiveWindowManagerPID()
++{
++	local windowManager="$1"
++	local windowManagerPIDs="$(pidof "$windowManager")"
++	local displayNumber="$(echo $DISPLAY | awk 'BEGIN { FS = "[:.]" } { print $2 }')"
++	ps e -p "$windowManagerPIDs" | awk -v n="$displayNumber" '$0 ~ " DISPLAY=:" n "[\n .]" { print $1 }'
++}
++
++echo "$(ActiveWindowManagerPID $1)"
