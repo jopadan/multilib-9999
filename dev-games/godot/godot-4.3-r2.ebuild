@@ -50,7 +50,6 @@ RDEPEND="
 	media-libs/libogg
 	media-libs/libpng:=
 	media-libs/libvorbis
-	net-libs/mbedtls:3
 	net-libs/wslay
 	sys-libs/zlib:=
 	alsa? ( media-libs/alsa-lib )
@@ -162,7 +161,7 @@ src_compile() {
 		builtin_libtheora=$(usex !theora)
 		builtin_libvorbis=no
 		builtin_libwebp=$(usex !webp)
-		builtin_mbedtls=no
+		builtin_mbedtls=yes
 		builtin_miniupnpc=yes #934044 (for now, should revisit)
 		builtin_msdfgen=yes # not wired for unbundling nor packaged
 		builtin_openxr=yes # not packaged
