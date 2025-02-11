@@ -102,7 +102,7 @@ src_prepare() {
 	# use of builtin_ switches can be messy (see below), delete to be sure
 	local unbundle=(
 		brotli doctest embree freetype graphite harfbuzz icu4c libogg
-		libpng libtheora libvorbis libwebp linuxbsd_headers mbedtls
+		libpng libtheora libvorbis libwebp linuxbsd_headers
 		pcre2 recastnavigation volk wslay zlib zstd
 		# certs: unused by generated header, but scons panics if not found
 		# miniupnpc: check if can re-add on bump, bug #934044
