@@ -3,7 +3,8 @@
 
 EAPI=7
 
-inherit multilib-minimal autotools libtool
+DOCS_BUILDER="doxygen"
+inherit multilib-minimal autotools libtool docs
 
 DESCRIPTION="Open Dynamics Engine SDK"
 HOMEPAGE="http://ode.org/"
@@ -22,19 +23,23 @@ IUSE="debug doc double-precision examples gyroscopic static-libs"
 
 RDEPEND="
 	examples? (
-		virtual/glu
-		virtual/opengl
+		virtual/glu[${MULTILIB_USEDEP}]
+		virtual/opengl[${MULTILIB_USEDEP}]
 	)
 "
 DEPEND="${RDEPEND}"
 BDEPEND="doc? ( app-text/doxygen )"
+DOCS_DIR="ode/doc"
+DOCS=( CHANGELOG.txt README.md )
 
 MY_EXAMPLES_DIR=/usr/share/doc/${PF}/examples
 
-DOCS=( CHANGELOG.txt README.md )
 
-PATCHES=(
-)
+if ver_test "${PV}" -lt 0.15.1; then
+	PATCHES+=(
+		"${FILESDIR}"/${PN}-0.14-gcc7.patch
+	)
+fi
 
 src_prepare() {
 	default
@@ -43,7 +48,7 @@ src_prepare() {
 		-e "s:\$.*/drawstuff/textures:${MY_EXAMPLES_DIR}:" \
 		drawstuff/src/Makefile.am \
 		ode/demo/Makefile.am || die
-	[[ ${PV} == *9999 ]] &&  eautoreconf -f -i -s -W all
+	eautoreconf -a -f -i -s -W all
 	multilib_copy_sources
 }
 
@@ -65,7 +70,7 @@ multilib_src_configure() {
 multilib_src_compile() {
 	emake all
 	if multilib_is_native_abi; then
-		use doc && cd ode/doc && doxygen Doxyfile && cd .. && emake doc
+		use doc && docs_compile || die
 	fi
 }
 
@@ -75,7 +80,8 @@ multilib_src_install() {
 	find "${ED}" -name '*.la' -delete || die
 
 	if multilib_is_native_abi; then
-		use doc && cd ode/doc && docinto html && dodoc -r * && cd ../../ || die
+		use doc && einstalldocs || die
+
 		if use examples ; then
 			docompress -x ${MY_EXAMPLES_DIR}
 
