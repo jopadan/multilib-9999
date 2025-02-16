@@ -1,0 +1,12 @@
+diff --git a/engine/common/com_phys_ode.c b/engine/common/com_phys_ode.c
+index bd7a31a3f..d6e9982b8 100644
+--- a/engine/common/com_phys_ode.c
++++ b/engine/common/com_phys_ode.c
+@@ -80,7 +80,6 @@ static rbeplugfuncs_t *rbefuncs;
+ // include files.
+ #ifdef ODE_STATIC
+ #undef ODE_DYNAMIC
+-#define dDOUBLE
+ #include "ode/ode.h"
+ #else
+ #ifndef ODE_DYNAMIC
