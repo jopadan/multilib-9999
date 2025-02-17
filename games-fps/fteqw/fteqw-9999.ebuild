@@ -15,7 +15,7 @@ if [[ ${PV} == *9999 ]] ; then
 	EGIT_REPO_URI="https://github.com/fte-team/${PN}"
 	inherit git-r3
 else
-SRC_URI="https://bitbucket.org/odedevs/${PN}/downloads/${P}.tar.gz"
+SRC_URI="https://github.com/fte-team/fteqw/archive/refs/heads/master.zip"
 fi
 
 LICENSE="GPL-2"
