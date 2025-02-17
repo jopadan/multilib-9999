@@ -6,10 +6,8 @@ EAPI=8
 
 inherit toolchain-funcs cmake autotools
 
-DESCRIPTION="FTE QuakeWorld (Quake 1) client & server"
-HOMEPAGE="http://www.fteqw.com/"
-# mirror://sourceforge/${PN}/ftesrc${PV}-all.zip
-SRC_URI=""
+DESCRIPTION="FTE QuakeWorld (Quake 1,2,3) client & server"
+HOMEPAGE="http://www.fteqw.org/"
 
 if [[ ${PV} == *9999 ]] ; then
 	EGIT_REPO_URI="https://github.com/fte-team/${PN}"
