@@ -11,6 +11,7 @@ HOMEPAGE="https://github.com/libsdl-org/SDL_mixer"
 
 if [[ ${PV} == *9999 ]] ; then
 	EGIT_REPO_URI="https://github.com/libsdl-org/SDL_mixer"
+	EGIT_BRANCH=SDL2
 	inherit git-r3
 else
 	SRC_URI="https://www.libsdl.org/projects/SDL_mixer/release/${MY_P}.tar.gz"
