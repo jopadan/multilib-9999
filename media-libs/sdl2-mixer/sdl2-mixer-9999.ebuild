@@ -16,6 +16,7 @@ if [[ ${PV} == *9999 ]] ; then
 else
 	SRC_URI="https://www.libsdl.org/projects/SDL_mixer/release/${MY_P}.tar.gz"
 	S="${WORKDIR}/${MY_P}"
+	PATCHES=("${FILESDIR}"/sdl2-mixer-2.8.1-tremor-vorbisidec.patch)
 fi
 
 LICENSE="ZLIB"
@@ -58,10 +59,6 @@ RDEPEND="
 	wavpack? ( media-sound/wavpack[${MULTILIB_USEDEP}] )
 "
 DEPEND="${RDEPEND}"
-
-PATCHES=(
-    "${FILESDIR}"/sdl2-mixer-2.8.1-tremor-vorbisidec.patch
-)
 
 multilib_src_configure() {
 	local mycmakeargs=(
